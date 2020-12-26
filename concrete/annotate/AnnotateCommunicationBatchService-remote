@@ -25,7 +25,8 @@ if len(sys.argv) <= 1 or sys.argv[1] == '--help':
     print('Usage: ' + sys.argv[0] + ' [-h host[:port]] [-u url] [-f[ramed]] [-s[sl]] [-novalidate] [-ca_certs certs] [-keyfile keyfile] [-certfile certfile] function [arg1 [arg2...]]')
     print('')
     print('Functions:')
-    print('   annotate( originals)')
+    print('   annotateBatch( originals)')
+    print('  Communication annotate(Communication original)')
     print('  AnnotationMetadata getMetadata()')
     print('  string getDocumentation()')
     print('  void shutdown()')
@@ -108,7 +109,13 @@ protocol = TBinaryProtocol(transport)
 client = AnnotateCommunicationBatchService.Client(protocol)
 transport.open()
 
-if cmd == 'annotate':
+if cmd == 'annotateBatch':
+    if len(args) != 1:
+        print('annotateBatch requires 1 args')
+        sys.exit(1)
+    pp.pprint(client.annotateBatch(eval(args[0]),))
+
+elif cmd == 'annotate':
     if len(args) != 1:
         print('annotate requires 1 args')
         sys.exit(1)
