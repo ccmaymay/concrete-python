@@ -4,7 +4,8 @@ from thrift.transport import TSocket
 from thrift.protocol import TCompactProtocol
 
 from concrete.util import (
-    SubprocessAnnotateCommunicationServiceWrapper
+    SubprocessAnnotateCommunicationServiceWrapper,
+    SubprocessAnnotateCommunicationBatchServiceWrapper,
 )
 from concrete.util import find_port
 from concrete.util import create_comm
@@ -12,8 +13,14 @@ from concrete.util import create_comm
 
 from time import time
 
-from concrete.annotate import AnnotateCommunicationService
+from concrete.annotate import (
+    AnnotateCommunicationService,
+    AnnotateCommunicationBatchService,
+)
 from concrete import AnnotationMetadata
+
+
+from pytest import mark
 
 
 class NoopAnnotateCommunicationService(AnnotateCommunicationService.Iface):
@@ -36,8 +43,43 @@ class NoopAnnotateCommunicationService(AnnotateCommunicationService.Iface):
         pass
 
 
-def test_annotate():
-    impl = NoopAnnotateCommunicationService()
+class NoopAnnotateCommunicationBatchService(AnnotateCommunicationBatchService.Iface):
+    METADATA_TOOL = 'No-op AnnotateCommunicationBatchService'
+
+    def annotate(self, communication):
+        return self.annotateBatch([communication])[0]
+
+    def annotateBatch(self, communications):
+        return communications
+
+    def getMetadata(self,):
+        metadata = AnnotationMetadata(tool=self.METADATA_TOOL,
+                                      timestamp=int(time()))
+        return metadata
+
+    def getDocumentation(self):
+        return '''\
+        AnnotateCommunicationBatchService that returns communications unmodified
+        '''
+
+    def shutdown(self):
+        pass
+
+
+@mark.parametrize(
+    'service_class,service_wrapper_class',
+    [
+        (
+            NoopAnnotateCommunicationService,
+            SubprocessAnnotateCommunicationServiceWrapper,
+        ),
+        (
+            NoopAnnotateCommunicationBatchService,
+            SubprocessAnnotateCommunicationBatchServiceWrapper,
+        ),
+    ])
+def test_annotate(service_class, service_wrapper_class):
+    impl = service_class()
     host = 'localhost'
     port = find_port()
     timeout = 5
@@ -49,12 +91,13 @@ def test_annotate():
     comm_metadata_tool = comm.metadata.tool
     comm_metadata_timestamp = comm.metadata.timestamp
 
-    with SubprocessAnnotateCommunicationServiceWrapper(impl, host, port,
-                                                       timeout=timeout):
+    with service_wrapper_class(impl, host, port, timeout=timeout):
         transport = TSocket.TSocket(host, port)
         transport = TTransport.TFramedTransport(transport)
         protocol = TCompactProtocol.TCompactProtocolAccelerated(transport)
 
+        # Use the AnnotateCommunicationService client for all services
+        # to test backwards compatibility.
         cli = AnnotateCommunicationService.Client(protocol)
         transport.open()
         res = cli.annotate(comm)
@@ -66,21 +109,34 @@ def test_annotate():
         assert res.metadata.timestamp == comm_metadata_timestamp
 
 
-def test_get_metadata():
-    impl = NoopAnnotateCommunicationService()
+@mark.parametrize(
+    'service_class,service_wrapper_class',
+    [
+        (
+            NoopAnnotateCommunicationService,
+            SubprocessAnnotateCommunicationServiceWrapper,
+        ),
+        (
+            NoopAnnotateCommunicationBatchService,
+            SubprocessAnnotateCommunicationBatchServiceWrapper,
+        ),
+    ])
+def test_get_metadata(service_class, service_wrapper_class):
+    impl = service_class()
     host = 'localhost'
     port = find_port()
     timeout = 5
 
-    with SubprocessAnnotateCommunicationServiceWrapper(impl, host, port,
-                                                       timeout=timeout):
+    with service_wrapper_class(impl, host, port, timeout=timeout):
         transport = TSocket.TSocket(host, port)
         transport = TTransport.TFramedTransport(transport)
         protocol = TCompactProtocol.TCompactProtocolAccelerated(transport)
 
+        # Use the AnnotateCommunicationService client for all services
+        # to test backwards compatibility.
         cli = AnnotateCommunicationService.Client(protocol)
         transport.open()
         metadata = cli.getMetadata()
         transport.close()
 
-        assert NoopAnnotateCommunicationService.METADATA_TOOL == metadata.tool
+        assert service_class.METADATA_TOOL == metadata.tool
