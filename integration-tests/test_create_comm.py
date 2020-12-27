@@ -8,7 +8,6 @@ from concrete.validate import validate_communication
 import os
 import sys
 from subprocess import Popen, PIPE
-from tempfile import mkstemp
 
 
 @fixture
@@ -26,16 +25,8 @@ malheureux.
 
 
 @fixture
-def output_file(request):
-    (fd, path) = mkstemp()
-    os.close(fd)
-
-    def _remove():
-        if os.path.exists(path):
-            os.remove(path)
-
-    request.addfinalizer(_remove)
-    return path
+def output_file(tmpdir):
+    yield os.path.join(tmpdir, 'output.comm')
 
 
 def test_create_comm(output_file, text):
