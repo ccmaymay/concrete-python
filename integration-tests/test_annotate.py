@@ -66,6 +66,16 @@ class NoopAnnotateCommunicationBatchService(AnnotateCommunicationBatchService.If
         pass
 
 
+# Test single-communication and batch annotate clients and services
+# against each other to test backwards compatibility of batch annotate
+# to single-communication annotate.
+@mark.parametrize(
+    'client_class',
+    [
+        AnnotateCommunicationService,
+        AnnotateCommunicationBatchService,
+    ]
+)
 @mark.parametrize(
     'service_class,service_wrapper_class',
     [
@@ -78,7 +88,7 @@ class NoopAnnotateCommunicationBatchService(AnnotateCommunicationBatchService.If
             SubprocessAnnotateCommunicationBatchServiceWrapper,
         ),
     ])
-def test_annotate(service_class, service_wrapper_class):
+def test_annotate(service_class, service_wrapper_class, client_class):
     impl = service_class()
     host = 'localhost'
     port = find_port()
@@ -96,9 +106,7 @@ def test_annotate(service_class, service_wrapper_class):
         transport = TTransport.TFramedTransport(transport)
         protocol = TCompactProtocol.TCompactProtocolAccelerated(transport)
 
-        # Use the AnnotateCommunicationService client for all services
-        # to test backwards compatibility.
-        cli = AnnotateCommunicationService.Client(protocol)
+        cli = client_class.Client(protocol)
         transport.open()
         res = cli.annotate(comm)
         transport.close()
@@ -109,6 +117,16 @@ def test_annotate(service_class, service_wrapper_class):
         assert res.metadata.timestamp == comm_metadata_timestamp
 
 
+# Test single-communication and batch annotate clients and services
+# against each other to test backwards compatibility of batch annotate
+# to single-communication annotate.
+@mark.parametrize(
+    'client_class',
+    [
+        AnnotateCommunicationService,
+        AnnotateCommunicationBatchService,
+    ]
+)
 @mark.parametrize(
     'service_class,service_wrapper_class',
     [
@@ -121,7 +139,7 @@ def test_annotate(service_class, service_wrapper_class):
             SubprocessAnnotateCommunicationBatchServiceWrapper,
         ),
     ])
-def test_get_metadata(service_class, service_wrapper_class):
+def test_get_metadata(service_class, service_wrapper_class, client_class):
     impl = service_class()
     host = 'localhost'
     port = find_port()
@@ -132,9 +150,7 @@ def test_get_metadata(service_class, service_wrapper_class):
         transport = TTransport.TFramedTransport(transport)
         protocol = TCompactProtocol.TCompactProtocolAccelerated(transport)
 
-        # Use the AnnotateCommunicationService client for all services
-        # to test backwards compatibility.
-        cli = AnnotateCommunicationService.Client(protocol)
+        cli = client_class.Client(protocol)
         transport.open()
         metadata = cli.getMetadata()
         transport.close()
