@@ -8,7 +8,6 @@ from concrete.validate import validate_communication
 import os
 import sys
 from subprocess import Popen, PIPE
-from tempfile import mkstemp
 
 
 @fixture
